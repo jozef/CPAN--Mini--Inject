@@ -34,6 +34,16 @@ sub setsub {
 sub add {
   my $mcpi = shift;
 
+  my @modules_to_add;
+  # add the module/version provided on the command line
+  if ($options{module}) {
+    push @modules_to_add,
+     {
+      version => $options{version},
+      module  => $options{module},
+     };
+  }
+
   if ( $options{file} =~ /([^\/]*)-([0-9._]+)\.tar\.gz$/ ) {
     $options{module}  ||= $1;
     $options{version} ||= $2;
@@ -43,7 +53,6 @@ sub add {
 
   $mcpi->readlist;
 
-  my @modules_to_add;
   if ( $options{'all-in-meta'} ) {
     ## attempt to read the META.yml
     my $meta_data = _load_meta( $options{file} );
@@ -72,9 +81,6 @@ sub add {
 
   }
   elsif ( $options{'discover-packages'} ) {
-    ## attempt to read the META.yml
-    my $meta_data = _load_meta( $options{file} );
-
     my $provides = _find_provides( $options{file} );
 
     while ( my ( $module, $version ) = each( %{$provides} ) ) {
@@ -83,19 +89,16 @@ sub add {
         version => $version,
         module  => $module
        };      
-    }
+    }    
   }
   
-  # always add the module/version provided on the command line
-  # as well
-  push @modules_to_add,
-   {
-    version => $options{version},
-    module  => $options{module},
-   };
-
   $mcpi->readlist;
   for my $item ( @modules_to_add ) {
+    # update version strings if adding daily builds
+    if ($INC{'Build/Daily.pm'}) {
+        $item->{version} = Build::Daily::version($item->{version});
+    }
+    
     $mcpi->add(
       module   => $item->{module},
       authorid => $options{authorid},
